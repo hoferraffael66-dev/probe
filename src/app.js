@@ -226,7 +226,7 @@ function buildFor(id, role) {
 // ---------------------------------------------------------------------------
 // Sidebar
 // ---------------------------------------------------------------------------
-const isMobile = () => window.matchMedia('(max-width: 760px)').matches;
+const isMobile = () => window.matchMedia('(max-width: 760px), (pointer: coarse)').matches;
 const setListOpen = (open) => document.body.classList.toggle('list-open', open);
 
 function setupStaticUi() {
