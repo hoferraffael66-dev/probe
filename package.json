@@ -1,0 +1,26 @@
+{
+  "name": "rift-counter",
+  "productName": "Rift Counter",
+  "version": "1.0.0",
+  "description": "Desktop-Helfer für League of Legends: Counter, Matchups, Items und Runen pro Lane.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis portable --x64 --publish never"
+  },
+  "author": "Rift Counter",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "app.riftcounter.desktop",
+    "productName": "Rift Counter",
+    "files": ["main.js", "preload.js", "src/**/*"],
+    "directories": { "output": "dist" },
+    "win": { "target": ["nsis", "portable"] },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true },
+    "portable": { "artifactName": "RiftCounter-Portable-${version}.exe" }
+  }
+}

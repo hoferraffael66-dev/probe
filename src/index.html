@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; img-src 'self' data: https://ddragon.leagueoflegends.com; connect-src https://ddragon.leagueoflegends.com; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+  <title>Rift Counter</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo">◆</span> Rift Counter</div>
+    <nav class="tabs" id="tabs">
+      <button data-view="champion" class="active">Champions</button>
+      <button data-view="finder">Counter-Finder</button>
+      <button data-view="live">Champ-Select <span class="dot" id="lcuDot"></span></button>
+    </nav>
+    <div class="patch" id="patch">Lade Daten …</div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <input id="search" class="search" type="search" placeholder="Champion suchen …" autocomplete="off" />
+      <div class="roles" id="roleFilter"></div>
+      <div class="grid" id="champGrid"></div>
+    </aside>
+
+    <main class="content">
+      <!-- Champion-Ansicht -->
+      <section id="view-champion" class="view active">
+        <div class="empty" id="champEmpty">
+          <h2>Wähle links einen Champion</h2>
+          <p>Du siehst dann, wer ihn countert, wen er countert, sowie die besten Items, Runen und Beschwörerzauber für jede Lane.</p>
+        </div>
+        <div id="champPage" hidden></div>
+      </section>
+
+      <!-- Counter-Finder -->
+      <section id="view-finder" class="view">
+        <div class="panel">
+          <h2>Gegner hat gepickt – wer countert ihn?</h2>
+          <p class="muted">Wähle den Champion des Gegners und deine Lane. Du bekommst die besten Counter-Picks.</p>
+          <div class="row">
+            <div class="picker" id="finderPicker"></div>
+            <div class="roles" id="finderRoles"></div>
+          </div>
+        </div>
+        <div id="finderResult"></div>
+      </section>
+
+      <!-- Live Champ-Select -->
+      <section id="view-live" class="view">
+        <div class="panel">
+          <h2>Live Champ-Select</h2>
+          <p class="muted">Liest deinen Champ-Select direkt aus dem laufenden League-Client (offizielle lokale Client-Schnittstelle, nur lesend). Funktioniert, sobald der Client auf diesem PC geöffnet ist.</p>
+          <label class="switch"><input type="checkbox" id="lcuToggle" /> Client-Erkennung aktivieren</label>
+          <label class="switch"><input type="checkbox" id="lcuAutoOpen" /> Meinen Champion automatisch öffnen</label>
+          <div class="status" id="lcuStatus">Aus</div>
+        </div>
+        <div id="liveResult"></div>
+      </section>
+    </main>
+  </div>
+
+  <div class="tooltip" id="tooltip" hidden></div>
+
+  <script src="data/builds.js"></script>
+  <script src="data/champions.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
