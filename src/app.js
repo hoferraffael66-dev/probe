@@ -116,6 +116,7 @@ async function init() {
   setupLcu();
   const last = store.get('lastChamp', null);
   if (last && S.champs[last]) openChampion(last);
+  else if (isMobile()) setListOpen(true);
 }
 
 // ---------------------------------------------------------------------------
@@ -225,7 +226,11 @@ function buildFor(id, role) {
 // ---------------------------------------------------------------------------
 // Sidebar
 // ---------------------------------------------------------------------------
+const isMobile = () => window.matchMedia('(max-width: 760px)').matches;
+const setListOpen = (open) => document.body.classList.toggle('list-open', open);
+
 function setupStaticUi() {
+  $('#listToggle').addEventListener('click', () => setListOpen(!document.body.classList.contains('list-open')));
   $('#tabs').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-view]');
     if (b) showView(b.dataset.view);
@@ -256,6 +261,7 @@ function setupStaticUi() {
 }
 
 function showView(v) {
+  setListOpen(false);
   document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('active', b.dataset.view === v));
   document.querySelectorAll('.view').forEach((s) => s.classList.toggle('active', s.id === `view-${v}`));
 }
