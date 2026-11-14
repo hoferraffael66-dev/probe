@@ -6,7 +6,7 @@
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'self'; img-src 'self' data: https://ddragon.leagueoflegends.com; connect-src https://ddragon.leagueoflegends.com; style-src 'self' 'unsafe-inline'; script-src 'self'" />
   <title>Rift Counter</title>
-  <link rel="stylesheet" href="styles.css?v=3" />
+  <link rel="stylesheet" href="styles.css?v=4" />
 </head>
 <body>
   <header class="topbar">
@@ -52,7 +52,19 @@
 
       <!-- Live Champ-Select -->
       <section id="view-live" class="view">
-        <div class="panel">
+        <div class="panel" id="manualPanel">
+          <h2>Champ-Select eingeben</h2>
+          <p class="muted">Trag deine Lane, deinen Champion (falls schon gewählt) und die Picks der Gegner ein. Du siehst sofort, wie deine Matchups stehen und welche Champions du am besten pickst.</p>
+          <div class="cs-label">Deine Lane</div>
+          <div class="roles" id="csRoles"></div>
+          <div class="cs-label">Dein Champion</div>
+          <div class="cs-slot"><div class="picker" id="csMe"></div><button class="cs-clear" data-cs-clear="me" aria-label="Entfernen">×</button></div>
+          <div class="cs-label">Gegnerteam</div>
+          <div class="cs-enemies" id="csEnemies"></div>
+          <button class="btn" id="csReset">Alles zurücksetzen</button>
+        </div>
+        <div id="manualResult"></div>
+        <div class="panel" id="lcuPanel">
           <h2>Live Champ-Select</h2>
           <p class="muted">Liest deinen Champ-Select direkt aus dem laufenden League-Client (offizielle lokale Client-Schnittstelle, nur lesend). Funktioniert, sobald der Client auf diesem PC geöffnet ist.</p>
           <label class="switch"><input type="checkbox" id="lcuToggle" /> Client-Erkennung aktivieren</label>
@@ -66,8 +78,8 @@
 
   <div class="tooltip" id="tooltip" hidden></div>
 
-  <script src="data/builds.js?v=3"></script>
-  <script src="data/champions.js?v=3"></script>
-  <script src="app.js?v=3"></script>
+  <script src="data/builds.js?v=4"></script>
+  <script src="data/champions.js?v=4"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>

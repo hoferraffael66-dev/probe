@@ -113,6 +113,7 @@ async function init() {
   $('#patch').textContent = `Patch ${data.version}${data.offline ? ' · offline (Cache)' : ''}`;
   renderGrid();
   renderFinder();
+  setupManualCs();
   setupLcu();
   const last = store.get('lastChamp', null);
   if (last && S.champs[last]) openChampion(last);
@@ -513,11 +514,42 @@ function renderFinder() {
 // ---------------------------------------------------------------------------
 // Live Champ-Select (League Client)
 // ---------------------------------------------------------------------------
+// Manueller Champ-Select (funktioniert überall, auch im Browser / am Handy)
+function setupManualCs() {
+  S.cs = store.get('cs', null) || { pos: 'mid', me: null, enemies: [null, null, null, null, null] };
+  $('#csReset').onclick = () => { S.cs = { pos: S.cs.pos, me: null, enemies: [null, null, null, null, null] }; renderManualCs(); };
+  $('#manualPanel').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-cs-clear]');
+    if (!b) return;
+    const k = b.dataset.csClear;
+    if (k === 'me') S.cs.me = null; else S.cs.enemies[+k] = null;
+    renderManualCs();
+  });
+  renderManualCs();
+}
+
+function renderManualCs() {
+  const cs = S.cs;
+  store.set('cs', cs);
+  const rr = $('#csRoles');
+  rr.innerHTML = ROLES.map(([k, n]) => `<button data-r="${k}" class="${k === cs.pos ? 'active' : ''}">${n}</button>`).join('');
+  rr.onclick = (e) => { const b = e.target.closest('button[data-r]'); if (b) { cs.pos = b.dataset.r; renderManualCs(); } };
+  makePicker($('#csMe'), (id) => { cs.me = id; renderManualCs(); }, cs.me, 'Noch nicht gewählt …');
+  $('#csEnemies').innerHTML = cs.enemies.map((_, i) =>
+    `<div class="cs-slot"><div class="picker" id="csE${i}"></div><button class="cs-clear" data-cs-clear="${i}" aria-label="Entfernen">×</button></div>`).join('');
+  cs.enemies.forEach((id, i) => makePicker($(`#csE${i}`), (pick) => { cs.enemies[i] = pick; renderManualCs(); }, id, `Gegner ${i + 1} …`));
+  const enemies = cs.enemies.filter((e) => e && S.champs[e]);
+  const myId = cs.me && S.champs[cs.me] ? cs.me : null;
+  const out = $('#manualResult');
+  if (!myId && !enemies.length) { out.innerHTML = ''; return; }
+  renderChampSelect(out, myId, cs.pos, enemies);
+}
+
 function setupLcu() {
   const toggle = $('#lcuToggle'), auto = $('#lcuAutoOpen');
   if (!window.api || !window.api.enableLcu) {
-    $('#lcuStatus').textContent = 'Nur in der Desktop-App verfügbar.';
-    toggle.disabled = auto.disabled = true;
+    $('#lcuPanel').hidden = true; // Browser darf nicht auf den League-Client zugreifen
+    $('#lcuDot').hidden = true;
     return;
   }
   toggle.checked = store.get('lcuOn', true);
@@ -552,6 +584,10 @@ function onLcu(p) {
     openChampion(myId, pos);
   }
 
+  renderChampSelect(out, myId, pos, enemies, allies);
+}
+
+function renderChampSelect(out, myId, pos, enemies, allies = []) {
   // Empfohlene Picks für meine Position gegen das bekannte Gegnerteam
   const taken = new Set([...enemies, ...allies]);
   const recs = Object.keys(S.champs)

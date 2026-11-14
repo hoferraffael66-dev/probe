@@ -165,6 +165,14 @@ h3 { margin: 0 0 10px; font-size: 13px; letter-spacing: .08em; text-transform: u
 ::-webkit-scrollbar-thumb { background: #27324a; border-radius: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 
+/* Manueller Champ-Select */
+.cs-label { font-size: 12px; color: var(--muted); margin: 14px 0 6px; text-transform: uppercase; letter-spacing: .06em; }
+.cs-slot { display: flex; gap: 6px; align-items: center; }
+.cs-enemies { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); gap: 8px; margin-bottom: 14px; }
+.cs-slot .picker { flex: 1; min-width: 0; width: auto; }
+.cs-clear { flex: none; width: 36px; height: 36px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel2); color: var(--muted); font-size: 18px; }
+.cs-clear:hover { color: var(--bad); border-color: var(--bad); }
+
 /* ---------- Handy / schmale Fenster ---------- */
 .list-toggle { display: none; }
 @media (max-width: 760px), (pointer: coarse) {
