@@ -14,6 +14,16 @@ Desktop-App für Windows (Electron) im Stil von u.gg:
 Champion-, Item-, Runen- und Zauberdaten (inkl. Bilder) kommen **live von Riots offizieller Data Dragon** und werden bei jedem neuen Patch automatisch aktualisiert und lokal gecached (danach auch offline nutzbar).
 Die Counter-/Build-Zuordnungen sind kuratierte Erfahrungswerte in `src/data/champions.js` und `src/data/builds.js` – du kannst sie dort jederzeit anpassen.
 
+## Im Browser nutzen (ohne Download)
+
+Die App läuft auch als Webseite – am PC und am Handy. Einmalig aktivieren:
+
+1. Auf GitHub im Repo **Settings → Pages** öffnen.
+2. Bei **Source** „Deploy from a branch“ wählen, Branch `claude/lol-counter-guide-desktop-renog5`, Ordner `/ (root)`, **Save**.
+3. Nach ca. 1 Minute ist sie erreichbar unter: `https://hoferraffael66-dev.github.io/probe/`
+
+Alles funktioniert im Browser, außer der automatischen Champ-Select-Erkennung (die braucht Zugriff auf den League-Client und geht nur in der Desktop-App).
+
 ## Installation (fertige .exe)
 
 1. Auf GitHub im Repo auf **Actions → Windows-Build** gehen, den neuesten Lauf öffnen.
