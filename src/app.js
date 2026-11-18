@@ -192,6 +192,69 @@ function verdict(score) {
   if (score <= -2) return { cls: 'bad', text: score <= -4 ? 'Schweres Matchup' : 'Nachteil' };
   return { cls: 'mid', text: 'Ausgeglichen' };
 }
+// ---------------------------------------------------------------------------
+// Team-Score: wie gut passt ein Champion gegen das ganze Gegnerteam?
+// ---------------------------------------------------------------------------
+const GROUP = {
+  lethality: 'assassin', ap_assassin: 'assassin',
+  tank: 'tank', engage_support: 'tank',
+  bruiser: 'fighter', duelist: 'fighter', crit_fighter: 'fighter', ap_bruiser: 'fighter',
+  ap_control: 'squishy', ap_dps: 'squishy', ap_burst: 'squishy', ap_onhit: 'squishy',
+  marksman_crit: 'squishy', marksman_onhit: 'squishy', marksman_spell: 'squishy', enchanter: 'squishy',
+};
+const MARKSMEN = new Set(['marksman_crit', 'marksman_onhit', 'marksman_spell']);
+// Wie stark Archetyp a Archetyp b "schlägt" (nur positive Vorteile, wird unten gegeneinander verrechnet)
+function archBeats(a, b) {
+  const ga = GROUP[a], gb = GROUP[b];
+  let v = 0;
+  if (ga === 'assassin' && gb === 'squishy') v += 1;                       // Assassinen töten Squishies
+  if (ga === 'tank' && gb === 'assassin') v += 1;                          // Tanks lassen Assassinen abprallen
+  if (ga === 'fighter' && gb === 'assassin') v += 0.5;                     // Kämpfer überleben den Burst
+  if (ga === 'fighter' && (MARKSMEN.has(b) || b === 'enchanter')) v += 0.5; // Kämpfer springen auf die Backline
+  if (a === 'ap_control' && gb === 'fighter') v += 0.5;                    // Kontroll-Magier kiten Kämpfer
+  if (gb === 'tank' && ['duelist', 'marksman_onhit', 'ap_dps', 'ap_bruiser'].includes(a)) v += 1; // %-Schaden gegen Tanks
+  if (gb === 'tank' && a === 'bruiser') v += 0.5;
+  if (a === 'engage_support' && (MARKSMEN.has(b) || b === 'ap_control')) v += 0.5;
+  if (ga === 'tank' && b === 'marksman_crit') v += 0.5;                    // Rüstung gegen Crit
+  return v;
+}
+const archAdv = (a, b) => archBeats(a, b) - archBeats(b, a);
+
+// Bewertet Champion c gegen alle Gegner. Direkte Matchups zählen voll (gleiche Lane 1,5-fach),
+// die Klassen-Logik ergänzt das für Gegner ohne direkte Daten.
+function teamScore(c, enemies, pos) {
+  let total = 0;
+  const good = [], bad = [];
+  for (const e of enemies) {
+    const direct = matchupScore(c, e) * (S.db[e].roles[0] === pos ? 1.5 : 1);
+    const cls = archAdv(S.db[c].arch, S.db[e].arch);
+    const v = direct + cls;
+    total += v;
+    if (v >= 0.5) good.push(e); else if (v <= -0.5) bad.push(e);
+  }
+  return { c, score: Math.round(total * 10) / 10, good, bad };
+}
+
+function enemySummary(enemies) {
+  const n = { AD: 0, AP: 0, tank: 0, assassin: 0, heal: 0, cc: 0 };
+  for (const e of enemies) {
+    const a = window.BUILDS[S.db[e].arch] || window.BUILDS.bruiser;
+    if (a.dmg === 'AD') n.AD++; else if (a.dmg === 'AP') n.AP++;
+    if (GROUP[S.db[e].arch] === 'tank') n.tank++;
+    if (GROUP[S.db[e].arch] === 'assassin') n.assassin++;
+    if (window.HEAL_HEAVY.has(e)) n.heal++;
+    if (window.CC_HEAVY.has(e)) n.cc++;
+  }
+  const tips = [];
+  if (n.AD >= 3) tips.push(`${n.AD}× AD-Schaden → Rüstung lohnt sich (Plated Steelcaps, Randuin, Thornmail)`);
+  if (n.AP >= 3) tips.push(`${n.AP}× AP-Schaden → Magieresistenz lohnt sich (Mercury, Force of Nature, Maw)`);
+  if (n.tank >= 2) tips.push(`${n.tank} Tanks → Prozent-Schaden einplanen (Black Cleaver, BotRK, Liandry, Lord Dominik)`);
+  if (n.assassin >= 2) tips.push(`${n.assassin} Assassinen → nicht allein rumlaufen, ggf. Zhonya / Guardian Angel / Death's Dance`);
+  if (n.heal >= 2) tips.push(`${n.heal} Champions mit viel Heilung → Anti-Heal früh kaufen`);
+  if (n.cc >= 3) tips.push(`Viel Kontrolle (${n.cc}) → Mercury's Treads / Tenacity`);
+  return tips;
+}
+
 const strengthLabel = (v, good) => (v >= 4 ? (good ? 'Hart-Counter' : 'Countert dich hart') : v >= 2.5 ? (good ? 'Guter Pick' : 'Countert dich') : (good ? 'Leichter Vorteil' : 'Leicht im Nachteil'));
 
 // ---------------------------------------------------------------------------
@@ -517,8 +580,11 @@ function renderFinder() {
 // Manueller Champ-Select (funktioniert überall, auch im Browser / am Handy)
 function setupManualCs() {
   S.cs = store.get('cs', null) || { pos: 'mid', me: null, enemies: [null, null, null, null, null] };
-  $('#csReset').onclick = () => { S.cs = { pos: S.cs.pos, me: null, enemies: [null, null, null, null, null] }; renderManualCs(); };
+  S.cs.pool = S.cs.pool || [];
+  $('#csReset').onclick = () => { S.cs = { pos: S.cs.pos, pool: S.cs.pool, me: null, enemies: [null, null, null, null, null] }; renderManualCs(); };
   $('#manualPanel').addEventListener('click', (e) => {
+    const pr = e.target.closest('[data-pool-rm]');
+    if (pr) { S.cs.pool = S.cs.pool.filter((x) => x !== pr.dataset.poolRm); renderManualCs(); return; }
     const b = e.target.closest('[data-cs-clear]');
     if (!b) return;
     const k = b.dataset.csClear;
@@ -535,6 +601,10 @@ function renderManualCs() {
   rr.innerHTML = ROLES.map(([k, n]) => `<button data-r="${k}" class="${k === cs.pos ? 'active' : ''}">${n}</button>`).join('');
   rr.onclick = (e) => { const b = e.target.closest('button[data-r]'); if (b) { cs.pos = b.dataset.r; renderManualCs(); } };
   makePicker($('#csMe'), (id) => { cs.me = id; renderManualCs(); }, cs.me, 'Noch nicht gewählt …');
+  $('#csPool').innerHTML = cs.pool.filter((c) => S.champs[c]).map((c) =>
+    `<button class="chip" data-pool-rm="${c}" title="Aus Pool entfernen"><img src="${champImg(c)}" alt="">${esc(champName(c))} <span>×</span></button>`).join('')
+    || '<span class="small">Noch leer – füge deine Main-Champions hinzu.</span>';
+  makePicker($('#csPoolAdd'), (id) => { if (!cs.pool.includes(id)) cs.pool.push(id); renderManualCs(); }, null, 'Champion zum Pool hinzufügen …');
   $('#csEnemies').innerHTML = cs.enemies.map((_, i) =>
     `<div class="cs-slot"><div class="picker" id="csE${i}"></div><button class="cs-clear" data-cs-clear="${i}" aria-label="Entfernen">×</button></div>`).join('');
   cs.enemies.forEach((id, i) => makePicker($(`#csE${i}`), (pick) => { cs.enemies[i] = pick; renderManualCs(); }, id, `Gegner ${i + 1} …`));
@@ -542,7 +612,7 @@ function renderManualCs() {
   const myId = cs.me && S.champs[cs.me] ? cs.me : null;
   const out = $('#manualResult');
   if (!myId && !enemies.length) { out.innerHTML = ''; return; }
-  renderChampSelect(out, myId, cs.pos, enemies);
+  renderChampSelect(out, myId, cs.pos, enemies, [], cs.pool);
 }
 
 function setupLcu() {
@@ -584,35 +654,47 @@ function onLcu(p) {
     openChampion(myId, pos);
   }
 
-  renderChampSelect(out, myId, pos, enemies, allies);
+  renderChampSelect(out, myId, pos, enemies, allies, (S.cs && S.cs.pool) || []);
 }
 
-function renderChampSelect(out, myId, pos, enemies, allies = []) {
-  // Empfohlene Picks für meine Position gegen das bekannte Gegnerteam
+function renderChampSelect(out, myId, pos, enemies, allies = [], pool = []) {
   const taken = new Set([...enemies, ...allies]);
-  const recs = Object.keys(S.champs)
-    .filter((c) => S.db[c].roles.includes(pos) && !taken.has(c))
-    .map((c) => [c, enemies.reduce((s, e) => s + matchupScore(c, e), 0)])
-    .filter(([, s]) => s > 0)
-    .sort((a, b) => b[1] - a[1]).slice(0, 10);
+  const scored = enemies.length
+    ? Object.keys(S.champs).filter((c) => S.db[c].roles.includes(pos) && !taken.has(c)).map((c) => teamScore(c, enemies, pos))
+    : [];
+  const recs = scored.filter((r) => r.score > 0).sort((a, b) => b.score - a.score).slice(0, 10);
+  const avoid = scored.filter((r) => r.score < 0).sort((a, b) => a.score - b.score).slice(0, 6);
+  const poolScored = enemies.length ? pool.filter((c) => S.champs[c] && !taken.has(c)).map((c) => teamScore(c, enemies, pos)).sort((a, b) => b.score - a.score) : [];
+  const names = (ids) => ids.map(champName).join(', ');
+  const scoreCls = (v) => (v >= 1 ? 'good' : v <= -1 ? 'bad' : 'mid');
+  const recCard = (r) => `<button class="centry rec ${scoreCls(r.score)}" data-open="${r.c}" data-role="${pos}">
+      <img src="${champImg(r.c)}" alt=""><div><div class="n">${esc(champName(r.c))} <span class="sc ${scoreCls(r.score)}">${r.score > 0 ? '+' : ''}${r.score}</span></div>
+      ${r.good.length ? `<div class="s good">Gut gegen: ${esc(names(r.good))}</div>` : ''}
+      ${r.bad.length ? `<div class="s bad">Schwer gegen: ${esc(names(r.bad))}</div>` : ''}</div></button>`;
 
   const card = (e) => {
-    const v = myId ? verdict(matchupScore(myId, e)) : null;
+    const v = myId ? verdict(matchupScore(myId, e) + archAdv(S.db[myId].arch, S.db[e].arch)) : null;
     return `<button class="centry ${v ? v.cls : ''}" ${myId ? `data-open="${myId}" data-role="${pos}" data-vs="${e}"` : `data-open="${e}"`}>
       <img src="${champImg(e)}" alt=""><div><div class="n">${esc(champName(e))}</div>
       ${v ? `<div class="s ${v.cls}">${v.text}</div>` : ''}</div></button>`;
   };
+  const mine = myId && enemies.length ? teamScore(myId, enemies, pos) : null;
+  const tips = enemySummary(enemies);
   out.innerHTML = `
+    ${poolScored.length ? `<div class="panel list-good"><h3>Dein Pool gegen dieses Team – Bester zuerst</h3>
+      <div class="clist wide">${poolScored.map(recCard).join('')}</div></div>` : ''}
+    ${enemies.length ? `<div class="panel list-good"><h3>Beste Picks gegen das ganze Gegnerteam – ${ROLE_NAME[pos]}</h3>
+      <p class="small">Bewertet jeden Champion gegen alle eingetragenen Gegner: direkte Matchups (gleiche Lane zählt stärker) plus Klassen-Vorteile (z. B. Assassine gegen Schützen, Tank gegen Assassinen).</p>
+      <div class="clist wide">${recs.map(recCard).join('') || '<p class="none">Keine klaren Vorteile gefunden.</p>'}</div></div>` : ''}
+    ${avoid.length ? `<div class="panel list-bad"><h3>Lieber nicht picken</h3>
+      <div class="clist wide">${avoid.map(recCard).join('')}</div></div>` : ''}
+    ${tips.length ? `<div class="panel"><h3>Gegnerteam-Analyse</h3>${tips.map((t) => `<div class="tip">${esc(t)}</div>`).join('')}</div>` : ''}
     <div class="panel">
-      <h3>Du: ${myId ? esc(champName(myId)) : 'noch kein Pick'} · ${ROLE_NAME[pos] || ''}</h3>
+      <h3>Du: ${myId ? esc(champName(myId)) : 'noch kein Pick'} · ${ROLE_NAME[pos] || ''}${mine ? ` <span class="sc ${scoreCls(mine.score)}">${mine.score > 0 ? '+' : ''}${mine.score}</span>` : ''}</h3>
       ${myId ? `<button class="btn" data-open="${myId}" data-role="${pos}">Build für ${esc(champName(myId))} öffnen</button>` : ''}
-    </div>
-    <div class="panel">
-      <h3>Gegnerteam ${myId ? '(Klick = Matchup-Details)' : ''}</h3>
+      <h3 style="margin-top:14px">Gegnerteam ${myId ? '(Klick = Matchup-Details)' : ''}</h3>
       <div class="team">${enemies.map(card).join('') || '<p class="none">Gegner hat noch nicht gepickt.</p>'}</div>
     </div>
-    ${enemies.length ? `<div class="panel list-good"><h3>Empfohlene Counter-Picks für ${ROLE_NAME[pos]}</h3>
-      <div class="clist">${recs.map(([c, s]) => `<button class="centry good" data-open="${c}" data-role="${pos}"><img src="${champImg(c)}" alt=""><div><div class="n">${esc(champName(c))}</div><div class="s">+${s} gegen Gegnerteam</div></div></button>`).join('') || '<p class="none">Keine klaren Counter gefunden.</p>'}</div></div>` : ''}
   `;
 }
 

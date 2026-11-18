@@ -173,6 +173,19 @@ h3 { margin: 0 0 10px; font-size: 13px; letter-spacing: .08em; text-transform: u
 .cs-clear { flex: none; width: 36px; height: 36px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel2); color: var(--muted); font-size: 18px; }
 .cs-clear:hover { color: var(--bad); border-color: var(--bad); }
 
+.cs-pool { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 3px; border-radius: 16px; border: 1px solid var(--gold); background: var(--panel2); font-size: 13px; }
+.chip img { width: 26px; height: 26px; border-radius: 50%; }
+.chip span { color: var(--muted); }
+.chip:hover span { color: var(--bad); }
+.clist.wide { grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); }
+.centry.rec { align-items: flex-start; }
+.centry.rec .s { line-height: 1.35; }
+.sc { font-size: 12px; font-weight: 700; padding: 1px 6px; border-radius: 4px; margin-left: 4px; }
+.sc.good { color: var(--good); background: rgba(63,191,127,.15); }
+.sc.bad { color: var(--bad); background: rgba(229,83,75,.15); }
+.sc.mid { color: var(--mid); background: rgba(216,169,59,.15); }
+
 /* ---------- Handy / schmale Fenster ---------- */
 .list-toggle { display: none; }
 @media (max-width: 760px), (pointer: coarse) {
