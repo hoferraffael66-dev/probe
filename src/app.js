@@ -232,7 +232,7 @@ function teamScore(c, enemies, pos) {
     total += v;
     if (v >= 0.5) good.push(e); else if (v <= -0.5) bad.push(e);
   }
-  return { c, score: Math.round(total * 10) / 10, good, bad };
+  return { c, pos, score: Math.round(total * 10) / 10, good, bad };
 }
 
 function enemySummary(enemies) {
@@ -598,7 +598,7 @@ function renderManualCs() {
   const cs = S.cs;
   store.set('cs', cs);
   const rr = $('#csRoles');
-  rr.innerHTML = ROLES.map(([k, n]) => `<button data-r="${k}" class="${k === cs.pos ? 'active' : ''}">${n}</button>`).join('');
+  rr.innerHTML = [['all', 'Alle Lanes'], ...ROLES].map(([k, n]) => `<button data-r="${k}" class="${k === cs.pos ? 'active' : ''}">${n}</button>`).join('');
   rr.onclick = (e) => { const b = e.target.closest('button[data-r]'); if (b) { cs.pos = b.dataset.r; renderManualCs(); } };
   makePicker($('#csMe'), (id) => { cs.me = id; renderManualCs(); }, cs.me, 'Noch nicht gewählt …');
   $('#csPool').innerHTML = cs.pool.filter((c) => S.champs[c]).map((c) =>
@@ -657,8 +657,51 @@ function onLcu(p) {
   renderChampSelect(out, myId, pos, enemies, allies, (S.cs && S.cs.pool) || []);
 }
 
+const scoreCls = (v) => (v >= 1 ? 'good' : v <= -1 ? 'bad' : 'mid');
+function recCardHtml(r, showLane = false) {
+  const names = (ids) => ids.map(champName).join(', ');
+  return `<button class="centry rec ${scoreCls(r.score)}" data-open="${r.c}" data-role="${r.pos}">
+      <img src="${champImg(r.c)}" alt=""><div><div class="n">${esc(champName(r.c))} <span class="sc ${scoreCls(r.score)}">${r.score > 0 ? '+' : ''}${r.score}</span>${showLane ? ` <span class="small">${ROLE_NAME[r.pos]}</span>` : ''}</div>
+      ${r.good.length ? `<div class="s good">Gut gegen: ${esc(names(r.good))}</div>` : ''}
+      ${r.bad.length ? `<div class="s bad">Schwer gegen: ${esc(names(r.bad))}</div>` : ''}</div></button>`;
+}
+
+// "Alle Lanes": beste Counter gegen das Gegnerteam insgesamt und je Lane
+function renderAllLanes(out, myId, enemies, taken, pool) {
+  if (!enemies.length) {
+    out.innerHTML = myId ? `<div class="panel"><h3>Du: ${esc(champName(myId))}</h3><p class="none">Trag die Gegner ein, um Counter zu sehen.</p></div>` : '';
+    return;
+  }
+  const byLane = ROLES.map(([r]) => {
+    const list = Object.keys(S.champs)
+      .filter((c) => S.db[c].roles.includes(r) && !taken.has(c))
+      .map((c) => teamScore(c, enemies, r))
+      .sort((a, b) => b.score - a.score);
+    return [r, list];
+  });
+  // Insgesamt: jeder Champion mit seiner besten Lane, einmal
+  const best = new Map();
+  for (const [, list] of byLane) for (const x of list) if (!best.has(x.c) || best.get(x.c).score < x.score) best.set(x.c, x);
+  const overall = [...best.values()].filter((x) => x.score > 0).sort((a, b) => b.score - a.score).slice(0, 8);
+  const poolScored = pool.filter((c) => S.champs[c] && !taken.has(c)).map((c) => best.get(c) || teamScore(c, enemies, S.db[c].roles[0])).sort((a, b) => b.score - a.score);
+  const tips = enemySummary(enemies);
+  const enemyChips = enemies.map((e) => `<button class="chip" data-open="${e}"><img src="${champImg(e)}" alt="">${esc(champName(e))}</button>`).join('');
+  out.innerHTML = `
+    <div class="panel"><h3>Gegnerteam</h3><div class="cs-pool">${enemyChips}</div></div>
+    ${poolScored.length ? `<div class="panel list-good"><h3>Dein Pool gegen dieses Team – Bester zuerst</h3>
+      <div class="clist wide">${poolScored.map((r) => recCardHtml(r, true)).join('')}</div></div>` : ''}
+    <div class="panel list-good"><h3>Beste Counter gegen alle Gegner – insgesamt</h3>
+      <p class="small">Jeder Champion wird gegen alle eingetragenen Gegner bewertet (direkte Matchups + Klassen-Vorteile) – in seiner stärksten Lane.</p>
+      <div class="clist wide">${overall.map((r) => recCardHtml(r, true)).join('') || '<p class="none">Keine klaren Counter gefunden.</p>'}</div></div>
+    ${byLane.map(([r, list]) => `<div class="panel list-good"><h3>Beste Counter – ${ROLE_NAME[r]}</h3>
+      <div class="clist wide">${list.slice(0, 4).filter((x) => x.score > 0).map((x) => recCardHtml(x)).join('') || '<p class="none">Keine klaren Vorteile in dieser Lane.</p>'}</div></div>`).join('')}
+    ${tips.length ? `<div class="panel"><h3>Gegnerteam-Analyse</h3>${tips.map((t) => `<div class="tip">${esc(t)}</div>`).join('')}</div>` : ''}
+  `;
+}
+
 function renderChampSelect(out, myId, pos, enemies, allies = [], pool = []) {
   const taken = new Set([...enemies, ...allies]);
+  if (pos === 'all') return renderAllLanes(out, myId, enemies, taken, pool);
   const scored = enemies.length
     ? Object.keys(S.champs).filter((c) => S.db[c].roles.includes(pos) && !taken.has(c)).map((c) => teamScore(c, enemies, pos))
     : [];
@@ -667,7 +710,7 @@ function renderChampSelect(out, myId, pos, enemies, allies = [], pool = []) {
   const poolScored = enemies.length ? pool.filter((c) => S.champs[c] && !taken.has(c)).map((c) => teamScore(c, enemies, pos)).sort((a, b) => b.score - a.score) : [];
   const names = (ids) => ids.map(champName).join(', ');
   const scoreCls = (v) => (v >= 1 ? 'good' : v <= -1 ? 'bad' : 'mid');
-  const recCard = (r) => `<button class="centry rec ${scoreCls(r.score)}" data-open="${r.c}" data-role="${pos}">
+  const recCard = (r) => `<button class="centry rec ${scoreCls(r.score)}" data-open="${r.c}" data-role="${r.pos}">
       <img src="${champImg(r.c)}" alt=""><div><div class="n">${esc(champName(r.c))} <span class="sc ${scoreCls(r.score)}">${r.score > 0 ? '+' : ''}${r.score}</span></div>
       ${r.good.length ? `<div class="s good">Gut gegen: ${esc(names(r.good))}</div>` : ''}
       ${r.bad.length ? `<div class="s bad">Schwer gegen: ${esc(names(r.bad))}</div>` : ''}</div></button>`;
